@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable prefer-const */
 import {service} from '@loopback/core';
 import {
@@ -19,20 +20,51 @@ import {
   requestBody,
   response,
 } from '@loopback/rest';
+import {HttpErrors} from '@loopback/rest';
+import {Llaves} from '../config/llaves';
 import {Persona} from '../models';
+import {Credenciales} from '../models/credenciales.model';
 import {PersonaRepository} from '../repositories';
 import {AutenticacionService} from '../services/autenticacion.service';
 const fetch = require('node-fetch');
 //import fetch from 'node-fetch'
 
-
 export class PersonaController {
   constructor(
     @repository(PersonaRepository)
-    public personaRepository : PersonaRepository,
+    public personaRepository: PersonaRepository,
     @service(AutenticacionService)
-    public servicioAutenticacion: AutenticacionService
+    public servicioAutenticacion: AutenticacionService,
   ) {}
+
+  @post("/identificarPersona", {
+    responses: {
+      '200': {
+        description: 'Identificación de usuarios',
+      },
+    },
+  })
+  async identificarPersona(
+    @requestBody() credenciales: Credenciales
+    ){
+    let p = await this.servicioAutenticacion.IdentificarPersona(
+      credenciales.usuario,
+      credenciales.clave,
+    );
+    if (p) {
+      let token = this.servicioAutenticacion.GenerarTokenJWT(p);
+      return {
+        datos: {
+          nombre: p.nombres,
+          correo: p.correo,
+          id: p.id
+        },
+        tk: token
+      }
+    } else {
+      throw new HttpErrors[401]("Datos Invalidos");
+    }
+  }
 
   @post('/personas')
   @response(200, {
@@ -55,18 +87,19 @@ export class PersonaController {
     let clave = this.servicioAutenticacion.GenerarClave();
     let claveCifrada = this.servicioAutenticacion.CifrarClave(clave);
     persona.clave = claveCifrada;
-    let p= await this.personaRepository.create(persona);
+    let p = await this.personaRepository.create(persona);
 
     //Notificar al Usuario
     let destino = persona.correo;
     let asunto = 'Registro en la plataforma';
     let contenido = `Hola ${persona.nombres}, su nombre de usuario es: ${persona.correo} y su contraseña es ${clave}`;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    fetch(`http://127.0.0.1:5000/envio-correo?correo_destino=${destino}&asunto=${asunto}&contenido=${contenido}`).then((data : any)=> {
+    fetch(
+      `${Llaves.urlServiciosNotificaciones}/envio-correo?correo_destino=${destino}&asunto=${asunto}&contenido=${contenido}`,
+    ).then((data: any) => {
       console.log(data);
-    })
+    });
     return p;
-
   }
 
   @get('/personas/count')
@@ -74,9 +107,7 @@ export class PersonaController {
     description: 'Persona model count',
     content: {'application/json': {schema: CountSchema}},
   })
-  async count(
-    @param.where(Persona) where?: Where<Persona>,
-  ): Promise<Count> {
+  async count(@param.where(Persona) where?: Where<Persona>): Promise<Count> {
     return this.personaRepository.count(where);
   }
 
@@ -128,7 +159,8 @@ export class PersonaController {
   })
   async findById(
     @param.path.string('id') id: string,
-    @param.filter(Persona, {exclude: 'where'}) filter?: FilterExcludingWhere<Persona>
+    @param.filter(Persona, {exclude: 'where'})
+    filter?: FilterExcludingWhere<Persona>,
   ): Promise<Persona> {
     return this.personaRepository.findById(id, filter);
   }
