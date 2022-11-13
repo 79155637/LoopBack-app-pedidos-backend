@@ -93,7 +93,7 @@ export class PersonaController {
     let destino = persona.correo;
     let asunto = 'Registro en la plataforma';
     let contenido = `Hola ${persona.nombres}, su nombre de usuario es: ${persona.correo} y su contraseña es ${clave}`;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    
     fetch(
       `${Llaves.urlServiciosNotificaciones}/envio-correo?correo_destino=${destino}&asunto=${asunto}&contenido=${contenido}`,
     ).then((data: any) => {

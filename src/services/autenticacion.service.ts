@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-misused-promises */
 import {repository} from '@loopback/repository';
 /* eslint-disable @typescript-eslint/no-shadow */
 import {Persona} from '../models/persona.model';
